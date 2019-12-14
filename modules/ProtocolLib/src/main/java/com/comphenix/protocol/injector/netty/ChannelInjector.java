@@ -120,7 +120,7 @@ public class ChannelInjector extends ByteToMessageDecoder implements Injector {
 	 * <p>
 	 * This must never be set outside the channel pipeline's thread.
 	 */
-	private PacketEvent currentEvent;
+	protected PacketEvent currentEvent;
 
 	/**
 	 * A packet event that should be processed by the write method.
@@ -286,15 +286,7 @@ public class ChannelInjector extends ByteToMessageDecoder implements Injector {
 					if (event != null && event.isCancelled())
 						return null;
 
-					return () -> {
-						T result;
-
-						// This field must only be updated in the pipeline thread
-						currentEvent = event;
-						result = callable.call();
-						currentEvent = null;
-						return result;
-					};
+					return new CallableContainer(ChannelInjector.this, callable, event);
 				}
 
 				@Override
@@ -305,11 +297,7 @@ public class ChannelInjector extends ByteToMessageDecoder implements Injector {
 					if (event != null && event.isCancelled())
 						return null;
 
-					return () -> {
-						currentEvent = event;
-						runnable.run();
-						currentEvent = null;
-					};
+					return new RunnableContainer(ChannelInjector.this, runnable, event);
 				}
 
 				PacketEvent handleScheduled(Object instance, FieldAccessor accessor) {
